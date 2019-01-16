@@ -2,7 +2,6 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/control_center" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/demo" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.6 (demo)" jdkType="Python SDK" />

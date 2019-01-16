@@ -1,4 +1,4 @@
-# Control Center
+# Demo
 
 ## Requirements
 - Python > 3.6

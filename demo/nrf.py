@@ -11,9 +11,9 @@ class Nrf:
                 len = self.radio.getDynamicPayloadSize()
                 receive_payload = self.radio.read(len)
 
-                return receive_payload
+                return receive_payload.decode('utf-8')
 
-    def send_message(self, message) -> bool:
+    def send_message(self, message):
         self.radio.stopListening()
         ok = self.radio.write(message)
         self.radio.startListening()

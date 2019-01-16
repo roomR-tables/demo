@@ -4,7 +4,8 @@ setup(
     name='demo',
     version='1.0.0',
     install_requires=[
-        'paho-mqtt'
+        'paho-mqtt',
+        'RPi.GPIO'
     ],
     entry_points="""
          [paste.app_factory]

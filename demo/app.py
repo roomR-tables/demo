@@ -2,6 +2,7 @@ import os
 from configparser import ConfigParser
 import json
 import logging
+import time
 
 from RF24 import *
 import RPi.GPIO as GPIO
@@ -10,15 +11,22 @@ import paho.mqtt.subscribe as subscribe
 import paho.mqtt.publish as publish
 import sqlite3
 
+from nrf import Nrf
+
 # Setup for GPIO 22 CE and CE0 CSN for RPi B+ with SPI Speed @ 8Mhz
 radio = RF24(RPI_V2_GPIO_P1_22, BCM2835_SPI_CS0, BCM2835_SPI_SPEED_8MHZ)
 radio.begin()
 radio.enableDynamicPayloads()
+radio.printDetails()
+
+pipes = [bytearray("arduino_read", "utf-8"), bytearray("pi_read", "utf-8")]
 
 # Do not use 0 as reading pipe! This pipe is already in use as writing pipe
-radio.openWritingPipe("arduino_read")
-radio.openReadingPipe(1, "pi_read")
+radio.openWritingPipe(pipes[0])
+radio.openReadingPipe(1, pipes[1])
 radio.startListening()
+
+nrf = Nrf(radio)
 
 
 def runApp():
@@ -75,16 +83,20 @@ def runApp():
     client.loop_start()
 
     while True:
+        message = nrf.read_message()
+
+        if message is not None:
+            print(message)
+
         # Blocking call until a message is received
-        msg = subscribe.simple("cc/cmd", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
-        payload = msg.payload.decode("utf-8")
+        #msg = subscribe.simple("cc/cmd", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
+        #payload = msg.payload.decode("utf-8")
 
-        try:
-            msg_json = json.loads(payload)
-        except json.JSONDecodeError as e:
-            log.error("Error when decoding json: %s", e)
-            continue
+        #try:
+        #    msg_json = json.loads(payload)
+        #except json.JSONDecodeError as e:
+        #    log.error("Error when decoding json: %s", e)
+        #    continue
 
-        if msg_json["cmd"] == "move":
-            print("MOVE!")
-            # Do movement stuff
+        #if msg_json["cmd"] == "move":
+        #print("MOVE")

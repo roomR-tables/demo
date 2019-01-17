@@ -68,6 +68,17 @@ def runApp():
                 except sqlite3.Error as e:
                     print(e)
 
+            if msg_json["cmd"] == "move":
+                try:
+                    with conn:
+                        cur = conn.cursor()
+                        cur.execute("UPDATE `settings` SET `status` = 'busy'")
+                        conn.commit()
+
+                        mqtt_client.publish(topic="cc/status", payload="busy")
+                except sqlite3.Error as e:
+                    print(e)
+
         conn.close()
 
     client = mqtt.Client()
@@ -83,20 +94,29 @@ def runApp():
     client.loop_start()
 
     while True:
-        message = nrf.read_message()
-
-        if message is not None:
-            print(message)
-
         # Blocking call until a message is received
-        #msg = subscribe.simple("cc/cmd", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
-        #payload = msg.payload.decode("utf-8")
+        msg = subscribe.simple("cc/cmd", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
+        payload = msg.payload.decode("utf-8")
 
-        #try:
-        #    msg_json = json.loads(payload)
-        #except json.JSONDecodeError as e:
-        #    log.error("Error when decoding json: %s", e)
-        #    continue
+        try:
+           msg_json = json.loads(payload)
+        except json.JSONDecodeError as e:
+           log.error("Error when decoding json: %s", e)
+           continue
 
-        #if msg_json["cmd"] == "move":
-        #print("MOVE")
+        if msg_json["cmd"] == "move":
+            done = False
+
+            while not done:
+                message = nrf.read_message()
+
+                if message is None:
+                    continue
+
+                if message == "done":
+                    done = True
+
+                if "position" in message:
+                    position = message.split(":")[1]
+
+                    publish.single("cc/position", payload=position, hostname=config.get("mqqt", "host"), port=int(config.get("mqtt", "port")))

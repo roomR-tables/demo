@@ -1,7 +1,6 @@
 import os
 from configparser import ConfigParser
 import json
-import logging
 import time
 
 from RF24 import *
@@ -30,7 +29,6 @@ nrf = Nrf(radio)
 
 
 def runApp():
-    log = logging.basicConfig()
     config = ConfigParser()
     config.read(os.path.join(os.path.dirname(__file__), "../config.ini"))
 
@@ -48,8 +46,8 @@ def runApp():
 
         try:
             msg_json = json.loads(payload)
-        except json.JSONDecodeError as e:
-            log.error("Error when decoding json: %s", e)
+        except json.decoder.JSONDecodeError as e:
+            print("Error when decoding json: %s" % e)
             return
 
         """
@@ -94,29 +92,53 @@ def runApp():
     client.loop_start()
 
     while True:
+        print("waiting")
         # Blocking call until a message is received
         msg = subscribe.simple("cc/cmd", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
         payload = msg.payload.decode("utf-8")
 
         try:
-           msg_json = json.loads(payload)
-        except json.JSONDecodeError as e:
-           log.error("Error when decoding json: %s", e)
-           continue
+            msg_json = json.loads(payload)
+        except json.decoder.JSONDecodeError as e:
+            print("Error when decoding json: %s" % e)
+            continue
 
         if msg_json["cmd"] == "move":
             done = False
+            timeout = False
 
-            while not done:
+            ok = nrf.send_message("move")
+
+            if not ok:
+                print("Move comment was not received by the table")
+                continue
+
+            millis = lambda: int(round(time.time() * 1000))
+            started_waiting_at = millis()
+
+            while not done and not timeout:
+                if (millis() - started_waiting_at) > 10000:
+                    print("Timeout with table communication")
+                    timeout = True
+
                 message = nrf.read_message()
 
                 if message is None:
                     continue
 
                 if message == "done":
+                    print("movement done!")
                     done = True
 
                 if "position" in message:
                     position = message.split(":")[1]
 
-                    publish.single("cc/position", payload=position, hostname=config.get("mqqt", "host"), port=int(config.get("mqtt", "port")))
+                    publish.single(topic="cc/position", payload=position, hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))
+
+            if done and not timeout:
+                conn = sqlite3.connect('cc.db')
+                cur = conn.cursor()
+                cur.execute("UPDATE `settings` SET `status` = 'available'")
+                conn.commit()
+                conn.close()
+                publish.single(topic="cc/status", payload="available", hostname=config.get("mqtt", "host"), port=int(config.get("mqtt", "port")))

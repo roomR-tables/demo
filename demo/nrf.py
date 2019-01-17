@@ -11,11 +11,11 @@ class Nrf:
                 len = self.radio.getDynamicPayloadSize()
                 receive_payload = self.radio.read(len)
 
-                return receive_payload.decode('utf-8')
+                return receive_payload.decode('utf-8').rstrip('\x00')
 
     def send_message(self, message):
         self.radio.stopListening()
-        ok = self.radio.write(message)
+        ok = self.radio.write(bytearray(message, "utf-8"))
         self.radio.startListening()
 
         return ok
@@ -32,6 +32,7 @@ class Nrf:
         # Describe the results
         if timeout:
             print('failed, response timed out.')
+            return None
         else:
             # Grab the response, compare, and send to debugging spew
             len = self.radio.getDynamicPayloadSize()

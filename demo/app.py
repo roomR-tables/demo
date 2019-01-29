@@ -60,10 +60,14 @@ def runApp():
                     with conn:
                         cur = conn.cursor()
                         cur.execute("SELECT `status` FROM `settings`")
-                        conn.commit()
+                        status = cur.fetchone()[0]
 
-                        mqtt_client.publish(topic="cc/status", payload=cur.fetchone()[0])
-                except sqlite3.Error as e:
+                        cur.execute("SELECT * FROM `tables`")
+                        table = cur.fetchone()
+
+                        message = {"status": status, "x_pos": table[1], "y_pos": table[2]}
+                        mqtt_client.publish(topic="cc/status", payload=json.dumps(message))
+                except Exception as e:
                     print(e)
 
             if msg_json["cmd"] == "move":
